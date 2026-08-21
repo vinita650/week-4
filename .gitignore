@@ -1,0 +1,9 @@
+.venv/
+.streamlit/
+chroma_db/
+*.pdf
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.local
