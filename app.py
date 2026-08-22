@@ -6,7 +6,7 @@ THRESHOLD = 1.4
 
 st.set_page_config(page_title='Chat with my document')
 st.title("RAG Chat Application")
-st.caption("Ask questions about Clean Code: A Handbook of Agile Software Craftsmanship by Robert C. Martin. Try: *What is the Boy Scout Rule?*")
+st.caption("Ask questions about Clean Code: A Handbook of Agile Software Craftsmanship by Robert C. Martin. Try: *What does Uncle Bob say about zombie code?*")
 
 # Initialize clients
 openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
