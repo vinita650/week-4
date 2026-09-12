@@ -13,6 +13,18 @@ st.set_page_config(page_title='Document Q&A Assistant')
 st.title("Document Q&A Assistant")
 st.caption("Ask questions about your documents. Start asking anything and get answers with source citations.")
 
+with st.expander("❓ How this works"):
+	st.markdown("""
+	This app uses **Retrieval-Augmented Generation (RAG)** to answer your questions accurately:
+
+	1. **Read**: When you upload a document, the app reads every page and breaks it into passages.
+	2. **Find**: When you ask a question, the app finds the passages most similar to your question.
+	3. **Answer**: The app reads only those passages and answers your question based on what's there — nothing made up.
+
+	Think of it like a smart librarian: instead of making up answers, it searches the book and reads the relevant sections aloud to you. You always see which pages it used.
+	""")
+
+
 os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # Initialize clients
