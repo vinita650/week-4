@@ -2,17 +2,57 @@
 import streamlit as st
 from openai import OpenAI
 import chromadb
+from pypdf import PdfReader
+import os
+import uuid
 
 THRESHOLD = 1.4
+UPLOADS_DIR = './uploads'
 
 st.set_page_config(page_title='Document Q&A Assistant')
 st.title("Document Q&A Assistant")
 st.caption("Ask questions about your documents. Start asking anything and get answers with source citations.")
 
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
 # Initialize clients
 openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 chroma_client = chromadb.PersistentClient(path='./chroma_db')
 collection = chroma_client.get_collection(name='docs')
+
+def extract_pdf_text(pdf_file):
+	pdf_reader = PdfReader(pdf_file)
+	documents = []
+	for page_num, page in enumerate(pdf_reader.pages):
+		text = page.extract_text()
+		documents.append({'text': text, 'page': page_num + 1})
+	return documents
+
+def add_documents_to_collection(documents, doc_name):
+	doc_id = str(uuid.uuid4())
+	for doc in documents:
+		response = openai_client.embeddings.create(
+			input=[doc['text']],
+			model='text-embedding-3-small'
+		)
+		embedding = response.data[0].embedding
+		collection.add(
+			documents=[doc['text']],
+			embeddings=[embedding],
+			metadatas=[{'page': doc['page'], 'source': doc_name}],
+			ids=[f"{doc_id}_{doc['page']}"]
+		)
+
+# File uploader in sidebar
+with st.sidebar:
+	st.header("📄 Upload Document")
+	uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
+	if uploaded_file is not None:
+		if st.button("Process PDF"):
+			with st.spinner("Processing PDF..."):
+				documents = extract_pdf_text(uploaded_file)
+				add_documents_to_collection(documents, uploaded_file.name)
+				st.success(f"✅ {uploaded_file.name} loaded! Ask questions about it.")
 
 # Initialize session state
 if 'history' not in st.session_state:
