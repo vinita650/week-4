@@ -6,7 +6,6 @@ from pypdf import PdfReader
 import os
 import uuid
 
-THRESHOLD = 1.4
 UPLOADS_DIR = './uploads'
 
 st.set_page_config(page_title='Document Q&A Assistant')
@@ -55,7 +54,13 @@ def add_documents_to_collection(documents, doc_name):
 			ids=[f"{doc_id}_{doc['page']}"]
 		)
 
-# File uploader in sidebar
+# Initialize session state for threshold and loaded docs
+if 'threshold' not in st.session_state:
+	st.session_state.threshold = 1.4
+if 'loaded_docs' not in st.session_state:
+	st.session_state.loaded_docs = []
+
+# File uploader and controls in sidebar
 with st.sidebar:
 	st.header("📄 Upload Document")
 	uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
@@ -64,7 +69,26 @@ with st.sidebar:
 			with st.spinner("Processing PDF..."):
 				documents = extract_pdf_text(uploaded_file)
 				add_documents_to_collection(documents, uploaded_file.name)
+				if uploaded_file.name not in st.session_state.loaded_docs:
+					st.session_state.loaded_docs.append(uploaded_file.name)
 				st.success(f"✅ {uploaded_file.name} loaded! Ask questions about it.")
+
+	st.divider()
+	st.subheader("⚙️ Settings")
+
+	st.session_state.threshold = st.slider(
+		"Match Threshold",
+		min_value=0.5,
+		max_value=2.5,
+		value=st.session_state.threshold,
+		step=0.1,
+		help="Lower = more lenient matches, Higher = stricter matches. If no passage meets this threshold, the app says it can't find the answer."
+	)
+
+	if st.session_state.loaded_docs:
+		st.write("**📚 Loaded Documents:**")
+		for doc in st.session_state.loaded_docs:
+			st.caption(f"✓ {doc}")
 
 # Initialize session state
 if 'history' not in st.session_state:
@@ -104,9 +128,9 @@ if question := st.chat_input("Ask a question about the document"):
     distances = results['distances'][0]
 
     # Check if closest distance exceeds threshold
-    if distances[0] > THRESHOLD:
+    if distances[0] > st.session_state.threshold:
         reply = 'I could not find that in your document.'
-        caption = f"closest match: {distances[0]:.2f} (threshold: {THRESHOLD})"
+        caption = f"closest match: {distances[0]:.2f} (threshold: {st.session_state.threshold})"
 
         # Add to history
         st.session_state.history.append({'role': 'user', 'content': question})
@@ -139,14 +163,8 @@ if question := st.chat_input("Ask a question about the document"):
         # Build messages for API
         messages = [{'role': 'system', 'content': system_message}]
 
-        # Add last 6 messages from history
-        for msg in st.session_state.history[-6:]:
-            messages.append({
-                'role': msg['role'],
-                'content': msg['content']
-            })
-
-        # Add current question
+        # Add only the current question (fixes follow-up trap by ensuring
+        # answers come strictly from retrieved sources, not conversation context)
         messages.append({'role': 'user', 'content': question})
 
         # Call the chat model
