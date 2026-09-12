@@ -1,3 +1,4 @@
+"""AI-powered assistant for exploring Clean Code: A Handbook of Agile Software Craftsmanship."""
 import streamlit as st
 from openai import OpenAI
 import chromadb
