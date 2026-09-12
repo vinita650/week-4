@@ -35,24 +35,57 @@ def extract_pdf_text(pdf_file):
 	pdf_reader = PdfReader(pdf_file)
 	documents = []
 	for page_num, page in enumerate(pdf_reader.pages):
-		text = page.extract_text()
-		documents.append({'text': text, 'page': page_num + 1})
+		text = page.extract_text().strip()
+		if text and len(text) > 50:
+			documents.append({'text': text, 'page': page_num + 1})
 	return documents
+
+def chunk_text(text, max_length=8000):
+	chunks = []
+	if len(text) <= max_length:
+		return [text]
+	words = text.split()
+	current_chunk = []
+	current_length = 0
+	for word in words:
+		word_length = len(word) + 1
+		if current_length + word_length > max_length:
+			if current_chunk:
+				chunks.append(' '.join(current_chunk))
+			current_chunk = [word]
+			current_length = word_length
+		else:
+			current_chunk.append(word)
+			current_length += word_length
+	if current_chunk:
+		chunks.append(' '.join(current_chunk))
+	return chunks
 
 def add_documents_to_collection(documents, doc_name):
 	doc_id = str(uuid.uuid4())
+	added_count = 0
 	for doc in documents:
-		response = openai_client.embeddings.create(
-			input=[doc['text']],
-			model='text-embedding-3-small'
-		)
-		embedding = response.data[0].embedding
-		collection.add(
-			documents=[doc['text']],
-			embeddings=[embedding],
-			metadatas=[{'page': doc['page'], 'source': doc_name}],
-			ids=[f"{doc_id}_{doc['page']}"]
-		)
+		chunks = chunk_text(doc['text'])
+		for chunk_idx, chunk in enumerate(chunks):
+			if not chunk.strip():
+				continue
+			try:
+				response = openai_client.embeddings.create(
+					input=[chunk],
+					model='text-embedding-3-small'
+				)
+				embedding = response.data[0].embedding
+				collection.add(
+					documents=[chunk],
+					embeddings=[embedding],
+					metadatas=[{'page': doc['page'], 'source': doc_name}],
+					ids=[f"{doc_id}_{doc['page']}_{chunk_idx}"]
+				)
+				added_count += 1
+			except Exception as e:
+				st.error(f"Error processing page {doc['page']}: {str(e)}")
+				continue
+	return added_count
 
 # Initialize session state for threshold and loaded docs
 if 'threshold' not in st.session_state:
@@ -67,11 +100,17 @@ with st.sidebar:
 	if uploaded_file is not None:
 		if st.button("Process PDF"):
 			with st.spinner("Processing PDF..."):
-				documents = extract_pdf_text(uploaded_file)
-				add_documents_to_collection(documents, uploaded_file.name)
-				if uploaded_file.name not in st.session_state.loaded_docs:
-					st.session_state.loaded_docs.append(uploaded_file.name)
-				st.success(f"✅ {uploaded_file.name} loaded! Ask questions about it.")
+				try:
+					documents = extract_pdf_text(uploaded_file)
+					if not documents:
+						st.error("❌ No readable text found in PDF. Try a different file.")
+					else:
+						added_count = add_documents_to_collection(documents, uploaded_file.name)
+						if uploaded_file.name not in st.session_state.loaded_docs:
+							st.session_state.loaded_docs.append(uploaded_file.name)
+						st.success(f"✅ {uploaded_file.name} loaded! ({added_count} passages indexed)")
+				except Exception as e:
+					st.error(f"❌ Error processing PDF: {str(e)}")
 
 	st.divider()
 	st.subheader("⚙️ Settings")
