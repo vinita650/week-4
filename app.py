@@ -1,13 +1,13 @@
-"""AI-powered assistant for exploring RBI Master Directions on Credit Card and Debit Card Issuance and Conduct."""
+"""AI-powered document Q&A assistant using retrieval-augmented generation."""
 import streamlit as st
 from openai import OpenAI
 import chromadb
 
 THRESHOLD = 1.4
 
-st.set_page_config(page_title='Chat with my document')
-st.title("RBI Card Master Direction Assistant")
-st.caption("Ask questions about RBI Master Directions on Credit Card and Debit Card Issuance and Conduct. Try: *What are the requirements for issuing a credit card?*")
+st.set_page_config(page_title='Document Q&A Assistant')
+st.title("Document Q&A Assistant")
+st.caption("Ask questions about your documents. Start asking anything and get answers with source citations.")
 
 # Initialize clients
 openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
