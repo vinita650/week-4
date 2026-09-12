@@ -32,10 +32,9 @@ openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # Use in-memory database to avoid Streamlit Cloud filesystem issues
 if 'chroma_client' not in st.session_state:
 	st.session_state.chroma_client = chromadb.EphemeralClient()
-	st.session_state.collection = st.session_state.chroma_client.create_collection(name='docs')
 
 chroma_client = st.session_state.chroma_client
-collection = st.session_state.collection
+collection = chroma_client.get_or_create_collection(name='docs')
 
 def extract_pdf_text(pdf_file):
 	pdf_reader = PdfReader(pdf_file)
